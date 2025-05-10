@@ -1,0 +1,6 @@
+.envrc
+.direnv/
+.build/
+_minted-*/
+svg-inkscape/
+build/

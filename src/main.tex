@@ -1,0 +1,516 @@
+\documentclass[t]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage{libertinus}
+\usepackage[scaled=0.85]{DejaVuSansMono}
+\usepackage{hyperref}
+\hypersetup{
+colorlinks=true,
+linkcolor=blue,
+linkbordercolor=blue,
+urlcolor=blue,
+urlbordercolor=blue,
+}
+\usepackage{svg}
+\usepackage{wrapfig}
+\usepackage[outputdir=build]{minted}
+\usepackage{verbatim}
+\usepackage{soul}
+\usepackage{upquote}
+\usepackage{tikzit}
+\input{stack.tikzstyles}
+
+\usetheme{Boadilla}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{enumerate items}[circle]
+
+\makeatother
+\setbeamertemplate{footline}{%
+\hbox{%
+\begin{beamercolorbox}[wd=1.0\paperwidth,ht=2.25ex,dp=1ex]{title in head/foot}%
+\hspace*{1em}%
+\usebeamerfont{title in head/foot}\NoHyper\insertshorttitle\endNoHyper%
+\hfill%
+\insertframenumber{} / \inserttotalframenumber
+\hspace*{1em}%
+\end{beamercolorbox}}%
+}
+\makeatletter
+
+\setbeameroption{show notes on second screen=right}
+%\setbeameroption{hide notes}
+\setbeamertemplate{note page}{\insertnote\par}
+
+\title{A "third way" of compiling polymorphism}
+\author{Isaac Elliott}
+\date{13 May, 2025}
+
+\begin{document}
+
+
+\frame{\titlepage}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a function}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple function}
+\footnotesize
+\begin{minted}{c}
+int64_t add(int64_t x, int64_t y) {
+    return x + y;
+}
+\end{minted}
+\end{block}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple function call}
+\begin{minted}{c}
+int64_t z = add(42, 99);
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{columns}
+
+\pause
+
+\begin{column}{0.48\textwidth}
+\begin{block}{Plausible machine code for \texttt{add}}
+\begin{minted}{nasm}
+add:
+mov rax, [rsp + 8]
+mov rbx, [rsp + 16]
+add rax, rbx
+mov [rsp + 24], rax
+ret
+\end{minted}
+\end{block}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{Plausible machine code for \textit{calling} \texttt{add}}
+\begin{minted}{nasm}
+push QWORD 42
+push QWORD 99
+call add
+mov [rbp], rax
+add rsp, 16
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\note{
+Let's start with some code generation fundamentals.
+\\ \\
+Here's a simple function that does addition.
+}
+\note<2->{
+\\ \\
+Here's some plausible machine code for the function. Let's step through it so you can
+get a feel for what it does.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a function}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple function}
+\footnotesize
+\begin{minted}{c}
+int64_t add(int64_t x, int64_t y) {
+    return x + y;
+}
+\end{minted}
+\end{block}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple function call}
+\begin{minted}{c}
+int64_t z = add(42, 99);
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{block}{Program state (\only<1-3>{calling \texttt{add}}\only<4-8>{running \texttt{add}}\only<9->{returned from \texttt{add}})}
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{tabular}{c l}
+& Instruction \\
+\hline
+\only<1-3,9->{
+\only<1>{$\rightarrow$} & \texttt{push QWORD 42} \\
+\only<2>{$\rightarrow$} & \texttt{push QWORD 99} \\
+\only<3>{$\rightarrow$} & \texttt{call add} \\
+\only<9>{$\rightarrow$} & \texttt{add rsp, 16} \\
+\only<10>{$\rightarrow$ & }
+}
+\only<4-8>{
+\only<4>{$\rightarrow$} & \texttt{mov rax, [rsp + 8]} \\
+\only<5>{$\rightarrow$} & \texttt{mov rbx, [rsp + 16]} \\
+\only<6>{$\rightarrow$} & \texttt{add rax, rbx} \\
+\only<7>{$\rightarrow$} & \texttt{mov [rsp + 24], rax} \\
+\only<8>{$\rightarrow$} & \texttt{ret}
+}
+\end{tabular}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{tabular}{l l}
+Address & Data \\
+\hline
+\texttt{0x0} & free \\
+\texttt{...} & free \\
+\only<4-8>{\texttt{rbp - 32\only<4-8>{ (= rsp)}} & return addr \\}%
+\only<3-9>{\texttt{rbp - 24\only<3,9>{ (= rsp)}} & \texttt{99} \\}%
+\only<2-9>{\texttt{rbp - 16\only<2>{ (= rsp)}} & \texttt{42} \\}%
+\texttt{rbp - 8\only<1,10>{ (= rsp)}} & \only<1-7>{space for \texttt{z}}\only<8->{\texttt{141}} \\
+\texttt{rbp} & ?
+\end{tabular}
+\end{column}
+\end{columns}
+\end{block}
+
+\note<1>{
+On the left we have the program counter. The arrow points to the instruction that
+will be executed next.
+\\ \\
+On the right is the stack, which is a primitive data struture provided to the program
+by the operating system. It's just a slab of memory, plus a register \texttt{rsp} that
+holds the address of the top of the stack.
+\\ \\
+By convention, more recent stack entries are stored at lower addresses. The maximum
+possible stack location isn't usually \texttt{0x0}; there are usually other parts of
+the program that live at those low address. But I thought that putting \texttt{0x0} as
+the "ceiling" of the stack was very illustrative.
+\\ \\
+The \texttt{rbp} register holds the "frame pointer". Every function call gets to own
+part of the stack, and promises not to mess with the portion of the stack owned by its
+caller. The frame pointer tells us where our caller's stack ends and ours begins.
+Local variables are addressed relative to the frame pointer.
+\\ \\
+So you can see that before we call \texttt{add} we've allocated memory for its return
+value.
+}
+\note<2>{
+We just pushed the 8 byte value \texttt{42} onto the stack.
+}
+\note<3>{
+We just pushed the 8 byte value \texttt{99} onto the stack.
+}
+\note<4>{
+We've called \texttt{add}, which pushes the return address onto the stack and then jumps
+to the function's address.
+}
+\note<5>{
+\texttt{99} was loaded into \texttt{rax}
+}
+\note<6>{
+\texttt{42} was loaded into \texttt{rbx}
+}
+\note<7>{
+\texttt{rax} was set to $99 + 42 = 141$
+}
+\note<8>{
+The space for \texttt{z} was filled with that value
+}
+\note<9>{
+We returned from \texttt{add}, which popped the return address from the top of the stack
+and then jumped to it.
+}
+\note<10>{
+Two 8-byte values were "popped" from the stack. They're technically still there (because
+we didn't overwrite them) but for all intents and purposes they're garbage.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a function}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple function}
+\footnotesize
+\begin{minted}{c}
+int64_t add(int64_t x, int64_t y) {
+    return x + y;
+}
+\end{minted}
+\end{block}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple function call}
+\begin{minted}{c}
+int64_t z = add(42, 99);
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{columns}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{Plausible machine code for \texttt{add}}
+\begin{minted}{nasm}
+add:
+mov rax, [rsp + 8]
+mov rbx, [rsp + 16]
+add rax, rbx
+mov [rsp + 24], rax
+ret
+\end{minted}
+\end{block}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{Plausible machine code for \textit{calling} \texttt{add}}
+\begin{minted}{nasm}
+push QWORD 42
+push QWORD 99
+call add
+mov [rbp], rax
+add rsp, 16
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\note{
+Production compilers avoid passing data via memory where possible, preferring registers,
+because accessing memory can be hundreds of times slower.
+\\ \\
+My example uses memory instead of registers to make \textit{size requirements} very explicit.
+At some point, every type must have a known size because it's possible that a value of that type will end up in memory.
+\\ \\
+There are no exceptions, even when a compiler uses registers effectively.
+Registers have fixed sizes, so the compiler needs to know the size of a value to determine which, if any, register can hold the value.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a polymorphic function}
+
+\begin{columns}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple polymorphic function (C++)}
+\begin{minted}{c++}
+template <class T>
+T id(T x) { return x; }
+\end{minted}
+\end{block}
+
+What is the size of \texttt{T}?
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple polymorphic function (Haskell)}
+\begin{minted}{haskell}
+id :: a -> a
+id x = x
+\end{minted}
+\end{block}
+
+What is the size of \texttt{a}?
+\end{column}
+
+\end{columns}
+
+\note{
+Polymorphic functions (also known as generics) are defined over \textit{all} types.
+\\ \\
+In the examples to the left, the names \texttt{T} and \texttt{a} are known as type \textit{variables}.
+Since a type variable stands for any possible type, it has no definitive size.
+\\ \\
+I just said that every type must have a known size.
+So how to you compile a function that involves types with \textit{unknown} sizes?
+This sounds like a contradiction.
+\\ \\
+I've chosen C++ and Haskell for my code examples because these languages have very different solutions to this problem.
+Let's look at C++ first because C++ comes before Haskell in the dictionary.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a polymorphic function (monomorphisation)}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple polymorphic function (C++)}
+\begin{minted}{c++}
+template <class T>
+T id(T x) { return x; }
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{columns}
+
+\pause
+
+\begin{column}{0.32\textwidth}
+\begin{block}{}
+\footnotesize
+\begin{minted}{c++}
+bool x = id(true);
+/*
+bool id(bool x) {
+    return x;
+}
+*/
+\end{minted}
+\end{block}
+\end{column}
+
+\pause
+
+\begin{column}{0.32\textwidth}
+\begin{block}{}
+\footnotesize
+\begin{minted}{c++}
+int32_t x = id(20);
+/*
+int32_t id(int32_t x) {
+    return x;
+}
+*/
+\end{minted}
+\end{block}
+\end{column}
+
+\pause
+
+\begin{column}{0.32\textwidth}
+\begin{block}{}
+\footnotesize
+\begin{minted}{c++}
+string x = id("hello");
+/*
+string id(string x) {
+    return x;
+}
+*/
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\note{
+C++ compiles polymorphic functions by \textit{not actually compiling polymorphic functions}.
+\\ \\
+The definition of a polymorphic function doesn't result in any code generation.
+Instead, specialised copies of the polymorphic function are generated whenever it's called with a concrete type.
+This process is called \textit{monomorphisation}.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Pros and cons of monomorphisation}
+
+\begin{table}
+\centering
+\begin{tabular}{l l}
+\centering
+Pros & Cons \\
+\hline
+\visible<2->{Generates efficient code} & \visible<3->{Generates a lot of code} \\
+& \visible<4->{No separate compilation} \\
+& \visible<5->{Complicates advanced type systems}
+\end{tabular}
+\end{table}
+
+\note<2>{
+The main advantage of this approach is that it generates the same code that you'd write if you used C and copy-pasted a lot of code.
+Each monomorphic version of the polymorphic function performs as well as if you'd written is by hand.
+This is what's known as a "zero-cost abstraction".
+\\ \\
+Of course, monomorphisation \textit{does} have costs, just not at the level of individual monomorphic functions.
+}
+\note<3>{
+If you use a function like \texttt{id} with 5 different concrete types, then your final program contains 5 slightly different versions of the same function.
+Introducting type variables to a function multiplies this effect.
+Large programs that use polymorphism liberally tend to exhibit \textit{code bloat} when compiled using monomorphisation.
+}
+\note<4>{
+A related issue is that modules containing polymorphic functions can't be separately compiled.
+Separate compilation reduces code bloat by placing a function's code in a single object file that can be referenced by other parts of the program.
+Separate compilation also speeds up the compilation process because code for a function definition is not repeatedly generated.
+}
+\note<5>{
+The final drawback I want to mention is how monomorphisation interacts with advanced type system features like existential types, generalised algebraic datatypes (GADTs), and dependent types.
+My impression as a compiler implementor is that it makes implementing some of these features more difficult, and for other features it's just the wrong approach.
+}
+\note<6>{
+While I've listed few pros relative to the number of cons, I often find that runtime efficiency is worth the trade.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a polymorphic function (uniform representation)}
+
+\begin{columns}
+\begin{column}{0.40\textwidth}
+\begin{block}{A simple polymorphic function (Haskell)}
+\begin{minted}{haskell}
+id :: a -> a
+id x = x
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+\begin{columns}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{C equivalent}
+\begin{minted}{c}
+void* id(void* x) {
+    return x;
+}
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\note{
+In Haskell, polymorphic functions actually are compiled.
+The requirement that "every type is has a known size" (including type variables) is satisfied by \textit{making every type (including type variables) have the same size}.
+Haskell values are boxed by default, which means they're represented by pointers to heap-allocated memory.
+\\ \\
+This approach is called \textit{uniform representation}.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Pros and cons of uniform representation}
+
+\begin{table}
+\centering
+\begin{tabular}{l l}
+Pros & Cons \\
+\hline
+\visible<2->{Generates compact code} & \visible<5->{Generates slow code} \\
+\visible<3->{Allows separate compilation} & \\
+\visible<4->{Simplifies advanced type systems} & \\
+\end{tabular}
+\end{table}
+\end{frame}
+
+
+\end{document}
