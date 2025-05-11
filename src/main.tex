@@ -563,14 +563,75 @@ In this respect, polymorphism via uniform representation is not a ``zero-cost ab
 
 Goals:
 \begin{itemize}
-\item Minimise heap usage (prefer stack allocation)
+\item Stack allocation by default
 \item Allow separate compilation
 \item Enable advanced type system features (higher-kinded types, GADTs, dependent types)
 \end{itemize}
 
 \note{
-
+Some of the tradeoffs described feel weird.
+For example: why should the use of polymorphic functions force me to choose between stack-allocation by default and separate compilation?
+For a while I've wondered if there are any other reasonable approaches to compiling polymorphism, and now I've got one that's interesting.
 }
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Compiling a polymorphic function (type passing)}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple polymorphic function (Haskell-like language)}
+\begin{minted}{haskell}
+id :: forall a. a -> a
+id x = x
+\end{minted}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{A simple polymorphic function call (Haskell-like language)}
+\begin{minted}{haskell}
+let x = id @Int64 42
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{block}{C equivalent (prelude)}
+\small
+\begin{minted}{c}
+typedef struct {
+    void (copy)(const void*, const void*);
+    void (move)(const void*, const void*);
+    void (drop)(const void*);
+} Type;
+
+const Type Type_Int64 = /* omitted */;
+\end{minted}
+\end{block}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{C equivalent (definition)}
+\begin{minted}{c}
+void id(void* result, const Type* a, const void* x) {
+    // result <- x
+    a->move(result, x);
+}
+\end{minted}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{C equivalent (call)}
+\begin{minted}{c}
+int64_t arg = 42;
+int64_t x;
+id(&x, &Type_Int64, &arg);
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
 \end{frame}
 
 
