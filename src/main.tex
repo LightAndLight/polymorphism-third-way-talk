@@ -38,7 +38,7 @@ urlbordercolor=blue,
 %\setbeameroption{hide notes}
 \setbeamertemplate{note page}{\insertnote\par}
 
-\title{A "third way" of compiling polymorphism}
+\title{A ``third way'' of compiling polymorphism}
 \author{Isaac Elliott}
 \date{13 May, 2025}
 
@@ -189,9 +189,9 @@ holds the address of the top of the stack.
 By convention, more recent stack entries are stored at lower addresses. The maximum
 possible stack location isn't usually \texttt{0x0}; there are usually other parts of
 the program that live at those low address. But I thought that putting \texttt{0x0} as
-the "ceiling" of the stack was very illustrative.
+the ``ceiling'' of the stack was very illustrative.
 \\ \\
-The \texttt{rbp} register holds the "frame pointer". Every function call gets to own
+The \texttt{rbp} register holds the ``frame pointer''. Every function call gets to own
 part of the stack, and promises not to mess with the portion of the stack owned by its
 caller. The frame pointer tells us where our caller's stack ends and ours begins.
 Local variables are addressed relative to the frame pointer.
@@ -226,7 +226,7 @@ We returned from \texttt{add}, which popped the return address from the top of t
 and then jumped to it.
 }
 \note<10>{
-Two 8-byte values were "popped" from the stack. They're technically still there (because
+Two 8-byte values were ``popped'' from the stack. They're technically still there (because
 we didn't overwrite them) but for all intents and purposes they're garbage.
 }
 \end{frame}
@@ -436,7 +436,7 @@ Pros & Cons \\
 \note<2>{
 The main advantage of this approach is that it generates the same code that you'd write if you used C and copy-pasted a lot of code.
 Each monomorphic version of the polymorphic function performs as well as if you'd written is by hand.
-This is what's known as a "zero-cost abstraction".
+This is what's known as a ``zero-cost abstraction''.
 \\ \\
 Of course, monomorphisation \textit{does} have costs, just not at the level of individual monomorphic functions.
 }
@@ -488,7 +488,7 @@ void* id(void* x) {
 
 \note{
 In Haskell, polymorphic functions actually are compiled.
-The requirement that "every type is has a known size" (including type variables) is satisfied by \textit{making every type (including type variables) have the same size}.
+The requirement that ``every type is has a known size'' (including type variables) is satisfied by \textit{making every type (including type variables) have the same size}.
 Haskell values are boxed by default, which means they're represented by pointers to heap-allocated memory.
 \\ \\
 This approach is called \textit{uniform representation}.
@@ -532,7 +532,8 @@ Functions take and return pointers, from humble booleans to complex dependent ty
 The biggest drawback of the uniform representation approach is its reliance on memory.
 As I said earlier, accessing memory can be hundreds of times slower than accessing registers.
 Overuse of memory and underuse of registers is a potentially massive handicap.
-\\ \\
+}
+\note<7>{
 Modern CPUs have layers of caches to reduce the performance gap between registers and memory.
 A cache hit is slower than reading from a register but still much faster than accessing memory.
 Instead of being read byte-at-a-time, larger chunks of memory (64B at the time of writing) are loaded and cached,
@@ -540,16 +541,35 @@ under the assumption that nearby bytes will soon be needed.
 When a program is structured such that reading one byte increases the probability of soon reading an adjacent byte,
 the program is said to have high \textit{data locality}.
 Programs that use a lot of heap allocation tend to have unpredictable data locality.
-\\ \\
+}
+\note<8>{
 Another problem is that heap allocation has a computational cost.
 The structure of the heap depends on the memory allocation system used by the program.
 The allocator has to track which heap regions are free or in use, so that it can reserve an appropriate region when a new allocation is requested.
 This bookkeeping work adds up.
-\\ \\
-Languages that use uniform representation typically rely on clever and complex allocation systems (often called "garbage collectors") to reduce these costs.
+}
+\note<9>{
+Languages that use uniform representation typically rely on clever and complex allocation systems (often called ``garbage collectors'') to reduce these costs.
 Garbage collectors can amortise the cost of many allocations over longer programs and improve data locality for common allocation patterns.
+\\ \\
 But because these allocation systems are general purpose, they're far from optimal for any \textit{specific} function or program.
-In this respect, polymorphism via uniform representation is not a "zero-cost abstraction".
+In this respect, polymorphism via uniform representation is not a ``zero-cost abstraction''.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{A ``third way'' for compiling a polymorphic function}
+
+Goals:
+\begin{itemize}
+\item Minimise heap usage (prefer stack allocation)
+\item Allow separate compilation
+\item Enable advanced type system features (higher-kinded types, GADTs, dependent types)
+\end{itemize}
+
+\note{
+
 }
 \end{frame}
 
