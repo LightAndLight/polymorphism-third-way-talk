@@ -651,4 +651,112 @@ and \textit{unlike} uniform representation, it doesn't require all values to be 
 \end{frame}
 
 
+\begin{frame}[fragile]
+\frametitle{Compiling a polymorphic function (type passing)}
+
+\begin{block}{A simple polymorphic function (Haskell-like language)}
+\begin{minted}{haskell}
+id :: forall a. a -> a
+id x = x
+\end{minted}
+\end{block}
+
+\begin{block}{A simple polymorphic function call (Haskell-like language)}
+\begin{minted}{haskell}
+let x = {-# SPECIALISE #-} id @Int64 42
+\end{minted}
+\end{block}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\begin{block}{C equivalent (definition)}
+\begin{minted}{c}
+int64_t id_Int64(int64_t x) {
+    return x;
+}
+\end{minted}
+\end{block}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\begin{block}{C equivalent (call)}
+\begin{minted}{c}
+int64_t x = id_Int64(42);
+\end{minted}
+\end{block}
+\end{column}
+\end{columns}
+
+\note{
+I also like this approach because it sets the stage for programmer-driven monomorphisation. 
+\\ \\
+If a polymorphic function is called repeatedly with a known type (e.g. in a loop),
+then the programmer can choose to use a specialised version to avoid the overhead of passing arguments via the stack.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Pros and cons of type passing}
+
+\begin{tabular}{l l}
+Pros & Cons \\
+\hline
+\visible<2->{Generates fast monomorphic code} & \visible<6->{Polymorphism has runtime overhead} \\
+\visible<3->{Reasonably compact code} & \\
+\visible<4->{Allows separate compilation} & \\
+\visible<5->{Supports advanced type system features} & \\
+\end{tabular}
+
+\note<2>{
+The presence of polymorphism in the language doesn't impact monomorphic code.
+Uniform representation mandates boxing by default in order to compile polymorphic code,
+and if you don't use polymorphism you still have to pay the cost.*
+
+* Unless you have a very advanced compiler like GHC.
+}
+\note<3>{
+Use of polymorphic functions with many different types doesn't cause an explosion in code size.
+However, the type dictionaries and extra function arguments take up space.
+}
+\note<4>{
+Separate compilation works.
+}
+\note<5>{
+The approach naturally generalises to higher-kinded types, existentials, GADTs, and maybe even dependent types.
+I'm running out of steam so I'm not going to justify that claim as part of this presentation.
+\\ \\
+If people are interested we can sketch some of it if there's extra time left, or afterward at the pub.
+}
+\note<6>{
+The main (theoretical) drawback is the runtime overhead of type dictionaries.
+
+\begin{itemize}
+\item These type dictionaries are extra function arguments
+\item Calling a type dictionary requires a pointer dereference and indirect jump
+\item More interesting cases require runtime construction of type dictionaries
+\end{itemize}
+
+I'm unsure of the magnitude of these performance impacts in real-world code.
+It may be that it's just too slow in general, but it's also possible that slow cases are rare and easily fixed by programmer-driven specialisation.
+\\ \\
+I'm building a compiler using these techniques with the intention of benchmarking the type passing approach.
+It's slow going because I have lots of other things to do, so if you're excited by these ideas then feel free to race ahead build the thing yourself so I can benchmark it.
+}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Related work}
+
+\begin{itemize}
+\item How to make ad-hoc polymorphism less ad hoc (1989) - \url{https://doi.org/10.1145/75277.75283}
+\item An ad hoc approach to the implementation of polymorphism (1991) - \url{https://doi.org/10.1145/117009.117017}
+\item Dictionary passing for polytypic polymorphism (2001) - \url{https://www.cs.princeton.edu/techreports/2001/635.pdf}
+\item A type-passing approach for the implementation of parametric methods in Java (2003) - \url{https://doi.org/10.1093/comjnl/46.3.263}
+\item Implementing Swift Generics (2017) - \url{https://www.youtube.com/watch?v=ctS8FzqcRug}
+\end{itemize}
+\end{frame}
+
+
 \end{document}
