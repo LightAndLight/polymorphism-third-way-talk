@@ -597,22 +597,7 @@ let x = id @Int64 42
 \end{column}
 \end{columns}
 
-\begin{block}{C equivalent (prelude)}
-\small
-\begin{minted}{c}
-typedef struct {
-    void (copy)(const void*, const void*);
-    void (move)(const void*, const void*);
-    void (drop)(const void*);
-} Type;
-
-const Type Type_Int64 = /* omitted */;
-\end{minted}
-\end{block}
-
-\begin{columns}
-\begin{column}{0.48\textwidth}
-\begin{block}{C equivalent (definition)}
+\begin{block}{C equivalent (definition)}<only@1,3>
 \begin{minted}{c}
 void id(void* result, const Type* a, const void* x) {
     // result <- x
@@ -620,18 +605,49 @@ void id(void* result, const Type* a, const void* x) {
 }
 \end{minted}
 \end{block}
-\end{column}
-\begin{column}{0.48\textwidth}
-\begin{block}{C equivalent (call)}
+
+\begin{block}{C equivalent (call)}<only@1,3>
 \begin{minted}{c}
 int64_t arg = 42;
 int64_t x;
 id(&x, &Type_Int64, &arg);
 \end{minted}
 \end{block}
-\end{column}
-\end{columns}
 
+\begin{block}{Prelude for C equivalent}<only@2>
+\small
+\begin{minted}{c}
+typedef struct {
+    void (*move)(const void*, const void*);
+    /* other functions omitted */
+} Type;
+
+const Type Type_Int64 = /* omitted */;
+\end{minted}
+\end{block}
+
+\note<1>{
+Here's an example of the approach.
+Polymorphic values are passed and returned via pointers, usually to stack memory.
+For each type variable, a corresponding \texttt{type dictionary} is passed to the function.
+Each type dictionary contains functions that manipulation pointers to values of a specific type.
+\\ \\
+For example, the \texttt{Type\_Int64} dictionary has functions that manipulate pointers to 64-bit integers.
+}
+\note<2>{
+Here's the definition of \texttt{Type}.
+\texttt{move} is the only function required to work with value types like integers.
+If you have compound types and reference counting allocation you can add a \texttt{copy} and \texttt{drop} function.
+}
+\note<3>{
+I find this approach interesting because it overlaps with both monomorphisation and uniform representation but can't be reduced to either.
+\\ \\
+It's similar to monomorphisation, in that monomorphic function arguments can be passed in registers or on the stack.
+And it's similar to uniform representation in that polymorphic arguments are represented by pointers.
+\\ \\
+But \textit{unlike} monomorphisation, it permits separate compilation,
+and \textit{unlike} uniform representation, it doesn't require all values to be heap-allocated pointers.
+}
 \end{frame}
 
 
