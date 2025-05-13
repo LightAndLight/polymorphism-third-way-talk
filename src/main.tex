@@ -794,4 +794,48 @@ I've started my experiments with automatic reference counting.
 \end{frame}
 
 
+\begin{frame}[fragile]
+\frametitle{Bonus slides - higher-kinded types}
+
+\begin{block}{A simple function with higher-kinded polymorphism (Haskell-like language)}
+\begin{minted}{haskell}
+id' :: forall (f :: Type -> Type) (a :: Type). f a -> f a
+id' x = x
+\end{minted}
+\end{block}
+
+\begin{block}{C equivalent}
+\begin{minted}{c}
+void id_prime(
+    void* result,
+    const TypeToType* f,
+    const Type* a,
+    const void* x
+) {
+    const Type* f_a = f->apply(a);
+    f_a->move(result, x);
+}
+\end{minted}
+\end{block}
+
+\note{
+Here's a silly identity function that only works on `container-shaped' types.
+When compiled, it gets an extra argument for each of the two type variables.
+\\ \\
+\texttt{f} is not a type dictionary, though - it's a type dictionary \textit{constructor}.
+\\ \\
+Notice that the constructed dictionary \texttt{f\_a} is behind a pointer.
+I think that higher-kinded types in the type passing approach also requires automatic memory management.
+For example, if \texttt{f a} was packed into the type component of \texttt{exists a. a} from earlier.
+\\ \\
+This kind (ha ha) of complication is why I'd like to benchmark real-world code compiled with this approach.
+Part of the reason I'm thinking about any of this is to reduce allocations,
+and it would potentially be a shame to just have moved them around.
+If higher-kinded types in this style were too slow or used too much memory to be practical,
+it would be better to not support them in the first place!
+I'm moderately optimistic, though.
+}
+\end{frame}
+
+
 \end{document}
