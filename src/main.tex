@@ -759,4 +759,39 @@ It's slow going because I have lots of other things to do, so if you're excited 
 \end{frame}
 
 
+\begin{frame}[fragile]
+\frametitle{Bonus slides - existential types}
+
+\begin{block}{A simple existential type (Haskell-like language)}
+\begin{minted}{haskell}
+exists a. a
+\end{minted}
+\end{block}
+
+\begin{block}{C equivalent}
+\begin{minted}{c}
+typedef struct {
+  const Type* type;
+  const void* value;
+} Exists_example;
+\end{minted}
+\end{block}
+
+\note{
+Logicians call parametric polymorphism ``universal quantification'', and existential quantification is its dual.
+In previous slides the \texttt{forall} keyword gave rise to extra function arguments for type dictionaries.
+On the other hand, \texttt{exists} corresponds to pairs/products/structures that have a field for each type variable.
+\\ \\
+\texttt{exists a. a} is not very useful; all you can do with it is pass it around.
+It's a useful minimal example nonetheless.
+\\ \\
+\texttt{exists a. a} is a type dictionary paired with a pointer to a value that the type dictionary can manipulate.
+\\ \\
+Notice that it contains a freestanding pointer.
+I claim that to compile unrestricted existential quantification you need a memory management system.
+I've started my experiments with automatic reference counting.
+}
+\end{frame}
+
+
 \end{document}
