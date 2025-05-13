@@ -756,6 +756,16 @@ It's slow going because I have lots of other things to do, so if you're excited 
 \item A type-passing approach for the implementation of parametric methods in Java (2003) - \url{https://doi.org/10.1093/comjnl/46.3.263}
 \item Implementing Swift Generics (2017) - \url{https://www.youtube.com/watch?v=ctS8FzqcRug}
 \end{itemize}
+
+\note{
+\begin{itemize}
+\item The seminal paper on type classes and the dictionary passing approach. This drives the intuition behind type passing.
+\item Notes the same problems with monomorphisation and uniform representation (but uses different names), and comes up with different middle-ground technique, due to their use of pointer tagging.
+\item The earliest example of type passing I could find. Doesn't consider parametric polymorphism; it uses type passing to allow runtime pattern matching on types.
+\item What it says on the tin. I'm not inspired by it; it's just very relevant.
+\item The most recent incarnation of this approach. I haven't dug into the Swift compiler so I don't know if this has changed in the meantime.
+\end{itemize}
+}
 \end{frame}
 
 
